@@ -6,10 +6,10 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"log"
 	"math/big"
 	"os"
-	"fmt"
 	"time"
 )
 
@@ -52,16 +52,15 @@ func main() {
 	fmt.Println("cacertBytes:", cacertBytes)
 	//func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv interface{}) (cert []byte, err error)
 
-
 	pemPrivateFile, err := os.Create("private_key.pem")
 	if err != nil {
-	    fmt.Println(err)
-	    os.Exit(1)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	var pemPrivateBlock = &pem.Block{ 
+	var pemPrivateBlock = &pem.Block{
 		Type:  "RSA PRIVATE KEY",
-	       	Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	}
 
 	fmt.Println("pemPrivateBlock:", pemPrivateBlock)
@@ -69,23 +68,22 @@ func main() {
 	err = pem.Encode(pemPrivateFile, pemPrivateBlock)
 	if err != nil {
 		fmt.Println(err)
-			os.Exit(1)
+		os.Exit(1)
 	}
 	pemPrivateFile.Close()
 	// ---------------------------------------------
-
 
 	// ---------------------------------------------
 	// Public Key
 	pemPublicFile, err := os.Create("public_key.pem")
 	if err != nil {
-	    fmt.Println(err)
-	    os.Exit(1)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	var pemPublicBlock = &pem.Block{ 
+	var pemPublicBlock = &pem.Block{
 		Type:  "CERTIFICATE",
-	       	Bytes: cacertBytes,
+		Bytes: cacertBytes,
 	}
 
 	fmt.Println("pemPublicBlock:", pemPublicBlock)
@@ -93,7 +91,7 @@ func main() {
 	err = pem.Encode(pemPublicFile, pemPublicBlock)
 	if err != nil {
 		fmt.Println(err)
-			os.Exit(1)
+		os.Exit(1)
 	}
 	pemPublicFile.Close()
 	// ---------------------------------------------
