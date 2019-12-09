@@ -44,6 +44,7 @@ func main() {
 	}
 	fmt.Println("privateKey:", privateKey)
 	fmt.Println("err:", err)
+	writePrivateKey("private_key.pem", privateKey)
 
 	/*
 		cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
@@ -52,13 +53,15 @@ func main() {
 			return
 		}
 		fmt.Println("cacertBytes:", cacertBytes)
+		writePublicKey("public_key.pem", cacertBytes)
 	*/
 
-	writePrivateKey("private_key.pem", privateKey)
-	//writePublicKey("public_key.pem", cacertBytes)
+	var block *pem.Block
+	block, _ = readPemFile("private_key.pem")
+	readPrivateKey(block)
 
-	readPemFile("private_key.pem")
-	//readPemFile("2_certs.pem")
+	block, _ = readPemFile("public_key.pem")
+	readCertificate(block)
 }
 
 func readPemFile(fileName string) (*pem.Block, error) {
@@ -72,20 +75,25 @@ func readPemFile(fileName string) (*pem.Block, error) {
 	fmt.Println("block:", block)
 	fmt.Println("rest:", rest)
 
+	return block, nil
+}
+
+func readPrivateKey(block *pem.Block) error {
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		panic("failed to parse certificate: " + err.Error())
 	}
 	fmt.Println("privateKey:", privateKey)
+	return nil
+}
 
-	/*
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			panic("failed to parse certificate: " + err.Error())
-		}
-		fmt.Println("cert:", cert)
-	*/
-	return block, nil
+func readCertificate(block *pem.Block) error {
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		panic("failed to parse certificate: " + err.Error())
+	}
+	fmt.Println("cert:", cert)
+	return nil
 }
 
 func writePrivateKey(fileName string, privateKey *rsa.PrivateKey) error {
