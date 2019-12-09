@@ -7,6 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
@@ -44,14 +45,50 @@ func main() {
 	fmt.Println("privateKey:", privateKey)
 	fmt.Println("err:", err)
 
-	cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		log.Fatal("error generating cacert:", err)
-		return
-	}
-	fmt.Println("cacertBytes:", cacertBytes)
-	//func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv interface{}) (cert []byte, err error)
+	/*
+		cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
+		if err != nil {
+			log.Fatal("error generating cacert:", err)
+			return
+		}
+		fmt.Println("cacertBytes:", cacertBytes)
+	*/
 
+	writePrivateKey("private_key.pem", privateKey)
+	//writePublicKey("public_key.pem", cacertBytes)
+
+	readPemFile("private_key.pem")
+	//readPemFile("2_certs.pem")
+}
+
+func readPemFile(fileName string) (*pem.Block, error) {
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	block, rest := pem.Decode(data)
+	fmt.Println("block:", block)
+	fmt.Println("rest:", rest)
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		panic("failed to parse certificate: " + err.Error())
+	}
+	fmt.Println("privateKey:", privateKey)
+
+	/*
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			panic("failed to parse certificate: " + err.Error())
+		}
+		fmt.Println("cert:", cert)
+	*/
+	return block, nil
+}
+
+func writePrivateKey(fileName string, privateKey *rsa.PrivateKey) error {
 	pemPrivateFile, err := os.Create("private_key.pem")
 	if err != nil {
 		fmt.Println(err)
@@ -70,12 +107,14 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	pemPrivateFile.Close()
-	// ---------------------------------------------
 
-	// ---------------------------------------------
-	// Public Key
-	pemPublicFile, err := os.Create("public_key.pem")
+	pemPrivateFile.Close()
+
+	return nil
+}
+
+func writePublicKey(fileName string, certBytes []byte) error {
+	publicKeyFile, err := os.Create(fileName)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -83,17 +122,18 @@ func main() {
 
 	var pemPublicBlock = &pem.Block{
 		Type:  "CERTIFICATE",
-		Bytes: cacertBytes,
+		Bytes: certBytes,
 	}
 
-	fmt.Println("pemPublicBlock:", pemPublicBlock)
+	//fmt.Println("pemPublicBlock:", pemPublicBlock)
 
-	err = pem.Encode(pemPublicFile, pemPublicBlock)
+	err = pem.Encode(publicKeyFile, pemPublicBlock)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	pemPublicFile.Close()
-	// ---------------------------------------------
 
+	publicKeyFile.Close()
+
+	return nil
 }
