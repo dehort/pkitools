@@ -16,7 +16,7 @@ import (
 
 func main() {
 	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(1653),
+		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
 			Organization:  []string{"my org"},
 			Country:       []string{"my country"},
@@ -46,17 +46,17 @@ func main() {
 	fmt.Println("err:", err)
 	writePrivateKey("private_key.pem", privateKey)
 
-	/*
-		cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
-		if err != nil {
-			log.Fatal("error generating cacert:", err)
-			return
-		}
-		fmt.Println("cacertBytes:", cacertBytes)
-		writePublicKey("public_key.pem", cacertBytes)
-	*/
+	cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		log.Fatal("error generating cacert:", err)
+		return
+	}
+	fmt.Println("cacertBytes:", cacertBytes)
+	writePublicKey("public_key.pem", cacertBytes)
 
-	generateCSR(privateKey)
+	/*
+		generateCSR(privateKey)
+	*/
 
 	/*
 		var block *pem.Block
