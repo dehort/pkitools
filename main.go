@@ -59,18 +59,18 @@ func main() {
 	generateCSR(privateKey)
 
 	/*
-	var block *pem.Block
-	block, _ = readPemFile("private_key.pem")
-	readPrivateKey(block)
+		var block *pem.Block
+		block, _ = readPemFile("private_key.pem")
+		readPrivateKey(block)
 
-	block, _ = readPemFile("public_key.pem")
-	readCertificate(block)
+		block, _ = readPemFile("public_key.pem")
+		readCertificate(block)
 	*/
 }
 
 func generateCSR(privateKey *rsa.PrivateKey) {
 	csrTemplate := &x509.CertificateRequest{
-		Subject: pkix.Name{CommonName:    "myserver"},
+		Subject:  pkix.Name{CommonName: "myserver"},
 		DNSNames: []string{"myserver", "fred.flintstone.com"},
 		//NotBefore:             time.Now(),
 		//NotAfter:              time.Now().AddDate(0, 1, 0),
@@ -85,7 +85,7 @@ func generateCSR(privateKey *rsa.PrivateKey) {
 	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, privateKey)
 	fmt.Println("csrBytes:", csrBytes)
 	fmt.Println("err:", err)
-	
+
 	writeCSR("csr.pem", csrBytes)
 }
 
