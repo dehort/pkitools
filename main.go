@@ -56,12 +56,62 @@ func main() {
 		writePublicKey("public_key.pem", cacertBytes)
 	*/
 
+	generateCSR(privateKey)
+
+	/*
 	var block *pem.Block
 	block, _ = readPemFile("private_key.pem")
 	readPrivateKey(block)
 
 	block, _ = readPemFile("public_key.pem")
 	readCertificate(block)
+	*/
+}
+
+func generateCSR(privateKey *rsa.PrivateKey) {
+	csrTemplate := &x509.CertificateRequest{
+		Subject: pkix.Name{CommonName:    "myserver"},
+		DNSNames: []string{"myserver", "fred.flintstone.com"},
+		//NotBefore:             time.Now(),
+		//NotAfter:              time.Now().AddDate(0, 1, 0),
+		//IsCA:                  true,
+		//ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		//KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		//BasicConstraintsValid: true,
+
+		//PublicKey: privateKey.PublicKey,
+	}
+
+	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, privateKey)
+	fmt.Println("csrBytes:", csrBytes)
+	fmt.Println("err:", err)
+	
+	writeCSR("csr.pem", csrBytes)
+}
+
+func writeCSR(fileName string, csrBytes []byte) error {
+	csrFile, err := os.Create(fileName)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	var pemCSRBlock = &pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csrBytes,
+	}
+
+	//fmt.Println("pemPublicBlock:", pemPublicBlock)
+
+	err = pem.Encode(csrFile, pemCSRBlock)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	csrFile.Close()
+
+	return nil
 }
 
 func readPemFile(fileName string) (*pem.Block, error) {
