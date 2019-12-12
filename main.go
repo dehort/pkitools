@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	//"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,44 +16,45 @@ import (
 )
 
 func main() {
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization:  []string{"my org"},
-			Country:       []string{"my country"},
-			Province:      []string{"my province"},
-			Locality:      []string{"my city"},
-			StreetAddress: []string{"my address"},
-			PostalCode:    []string{"my postal code"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(0, 1, 0),
-		IsCA:                  true,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
+
+	subject := pkix.Name{
+		Organization: []string{"my org"},
+		Country:      []string{"my country"},
+		Locality:     []string{"my city"},
 	}
 
-	fmt.Println("ca cert:", ca)
+	subject.CommonName = "root"
+	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		log.Fatalf("error generating key: %s", err)
+	}
+	caCert, err := createCert(subject.CommonName, subject, nil, &caPrivateKey.PublicKey, caPrivateKey)
+	if err != nil {
+		log.Fatalf("error generating key: %s", err)
+	}
+	writePrivateKey(fmt.Sprintf("%s_key.pem", subject.CommonName), caPrivateKey)
+	//writeCertificate(fmt.Sprintf("%s_cert.pem", subject.CommonName), caCert)
 
-	// rand.Reader reads from /dev/urandom...get random bytes for key generation
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-
+	subject.CommonName = "intermediate"
+	interCaPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		log.Fatalf("error generating key")
-		return
 	}
-	fmt.Println("privateKey:", privateKey)
-	fmt.Println("err:", err)
-	writePrivateKey("private_key.pem", privateKey)
+	interCert, err := createCert(subject.CommonName, subject, caCert, &interCaPrivateKey.PublicKey, caPrivateKey)
+	writePrivateKey(fmt.Sprintf("%s_key.pem", subject.CommonName), interCaPrivateKey)
+	//writeCertificate(fmt.Sprintf("%s_cert.pem", subject.CommonName), interCert)
+	fmt.Println(interCert, err)
 
-	cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &privateKey.PublicKey, privateKey)
+	subject.CommonName = "server"
+	serverPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		log.Fatal("error generating cacert:", err)
-		return
+		log.Fatalf("error generating key")
 	}
-	fmt.Println("cacertBytes:", cacertBytes)
-	writePublicKey("public_key.pem", cacertBytes)
+	serverCert, err := createCert(subject.CommonName, subject, interCert, &serverPrivateKey.PublicKey, interCaPrivateKey)
+	writePrivateKey(fmt.Sprintf("%s_key.pem", subject.CommonName), serverPrivateKey)
+	fmt.Println(serverCert, err)
+
+	//createCert("server", subject)
 
 	/*
 		generateCSR(privateKey)
@@ -66,6 +68,44 @@ func main() {
 		block, _ = readPemFile("public_key.pem")
 		readCertificate(block)
 	*/
+}
+
+func createCert(name string, subject pkix.Name, parentCert *x509.Certificate, pubKey interface{}, privKey interface{}) (*x509.Certificate, error) {
+	ca := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               subject,
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, 1, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+
+	if parentCert == nil {
+		parentCert = ca
+	}
+
+	fmt.Println("ca cert:", ca)
+
+	//fmt.Println("privateKey:", privateKey)
+	//writePrivateKey(fmt.Sprintf("%s_key.pem", name), privateKey)
+
+	cacertBytes, err := x509.CreateCertificate(rand.Reader, ca, parentCert, pubKey, privKey)
+	if err != nil {
+		log.Fatal("error generating cacert:", err)
+		return nil, err
+	}
+	fmt.Println("cacertBytes:", cacertBytes)
+	writePublicKey(fmt.Sprintf("%s_cert.pem", name), cacertBytes)
+
+	cert, err := x509.ParseCertificate(cacertBytes)
+	if err != nil {
+		log.Fatal("error building cert object:", err)
+		return nil, err
+	}
+
+	return cert, nil
 }
 
 func generateCSR(privateKey *rsa.PrivateKey) {
@@ -147,7 +187,7 @@ func readCertificate(block *pem.Block) error {
 }
 
 func writePrivateKey(fileName string, privateKey *rsa.PrivateKey) error {
-	pemPrivateFile, err := os.Create("private_key.pem")
+	pemPrivateFile, err := os.Create(fileName)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -194,4 +234,13 @@ func writePublicKey(fileName string, certBytes []byte) error {
 	publicKeyFile.Close()
 
 	return nil
+}
+
+func writeCertificate(fileName string, cert *x509.Certificate) error {
+	certBytes, err := x509.MarshalPKIXPublicKey(cert)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return writePublicKey(fileName, certBytes)
 }
